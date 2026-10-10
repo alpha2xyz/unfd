@@ -10,6 +10,7 @@ final class AppModel {
     var enabled: Bool { didSet { save(); if enabled { watcher.recheck() } } }
     var rules: Rules { didSet { save() } }
     var westernDigits: Bool { didSet { save() } }
+    var showIndicator: Bool { didSet { save() } }
 
     // What the panel shows.
     private(set) var currentLang: Lang? = InputSources.currentLang()
@@ -28,6 +29,10 @@ final class AppModel {
     @ObservationIgnored private let hotKey = FixHotKey()
     @ObservationIgnored private var lastSwitchByApp = Date.distantPast
     @ObservationIgnored private var lastChatKey: String?
+    @ObservationIgnored private var lastPlace: String?
+    @ObservationIgnored private var manualPlace: String?
+    @ObservationIgnored private var lastElement: ElementBox?
+    @ObservationIgnored private let indicator = CaretIndicator()
     @ObservationIgnored private var trustTimer: Timer?
     @ObservationIgnored private var readGeneration = 0
 
@@ -37,6 +42,7 @@ final class AppModel {
                       textDecides: defaults.object(forKey: "rule.text") as? Bool ?? true,
                       chatMemory: defaults.object(forKey: "rule.memory") as? Bool ?? true)
         westernDigits = defaults.object(forKey: "westernDigits") as? Bool ?? true
+        showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? true
         if let data = defaults.data(forKey: "memory"), let saved = try? JSONDecoder().decode([String: Lang].self, from: data) {
             memory = saved
         }
@@ -131,14 +137,20 @@ final class AppModel {
             let detected = ScriptDetector.detect(context.texts)
             await MainActor.run { [weak self] in
                 guard let self, generation == self.readGeneration else { return }
-                self.apply(context, detected: detected, appName: appName)
+                self.apply(context, detected: detected, appName: appName, element: box)
             }
         }
     }
 
-    private func apply(_ context: FieldContext, detected: Lang?, appName: String) {
+    private func apply(_ context: FieldContext, detected: Lang?, appName: String, element: ElementBox) {
         let isLink = context.field.isLinkField
         lastChatKey = isLink ? nil : context.chatKey
+        lastElement = element
+        // A manual switch holds for this place (this field type, this chat or window) until he moves elsewhere,
+        // so a repeated focus event can never flip his choice back while he types.
+        let place = isLink ? "\(context.field.bundleID)|link" : context.chatKey
+        if place != lastPlace { manualPlace = nil; lastPlace = place }
+        if manualPlace == place { return }
         nowApp = appName
         nowPlace = isLink ? "خانة رابط" : context.chatName
         guard let (lang, reason) = Decider.decide(isLinkField: isLink, remembered: memory[context.chatKey],
@@ -152,8 +164,11 @@ final class AppModel {
     private func switchTo(_ lang: Lang, reason: Reason) {
         nowLang = lang
         nowReason = reason
+        let before = InputSources.currentLang()
         lastSwitchByApp = Date()
-        if InputSources.select(lang, westernDigits: westernDigits) { currentLang = lang }
+        guard InputSources.select(lang, westernDigits: westernDigits) else { return }
+        currentLang = lang
+        if showIndicator, before != lang, let element = lastElement?.element { indicator.show(lang, at: element) }
     }
 
     /// Any keyboard change. If the app did not cause it, he pressed the switch key: count it and remember it for this chat.
@@ -163,6 +178,7 @@ final class AppModel {
         guard Date().timeIntervalSince(lastSwitchByApp) > 1, let lang else { return }
         if defaults.string(forKey: "manual.day") != Self.today { manualToday = 0 }
         manualToday += 1
+        manualPlace = lastPlace
         if rules.chatMemory, let key = lastChatKey { memory[key] = lang; nowLang = lang; nowReason = .memory }
         save()
     }
@@ -180,6 +196,7 @@ final class AppModel {
         defaults.set(rules.textDecides, forKey: "rule.text")
         defaults.set(rules.chatMemory, forKey: "rule.memory")
         defaults.set(westernDigits, forKey: "westernDigits")
+        defaults.set(showIndicator, forKey: "showIndicator")
         defaults.set(try? JSONEncoder().encode(memory), forKey: "memory")
         defaults.set(Self.today, forKey: "manual.day")
         defaults.set(manualToday, forKey: "manual.count")

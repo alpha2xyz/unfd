@@ -25,6 +25,7 @@ struct HomeView: View {
             row(Text("الخانة تأخذ لغة آخر الكلام"), $model.rules.textDecides)
             row(Text("تذكّر لغتي لكل محادثة"), $model.rules.chatMemory)
             row(Text("الأرقام دائماً 1234"), $model.westernDigits)
+            row(Text("أظهر اللغة عند المؤشر لما تتغير"), $model.showIndicator)
             if model.westernDigits && !model.arabic123Enabled {
                 HStack {
                     Text("لوحة Arabic – 123 غير مفعّلة").font(.caption).foregroundStyle(.secondary)

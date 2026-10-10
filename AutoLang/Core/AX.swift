@@ -125,6 +125,18 @@ nonisolated enum ContextReader {
         return (chatName, Array(bubbles.prefix(maxPieces)))
     }
 
+    /// The chat-name button in WhatsApp's header, found once and then read cheaply on every check.
+    static func findWhatsAppHeader(_ window: AXUIElement) -> AXUIElement? {
+        var queue = [window], seen = 0
+        while !queue.isEmpty, seen < 120 {
+            let node = queue.removeFirst(); seen += 1
+            if AX.string(node, kAXIdentifierAttribute) == "NavigationBar_HeaderViewButton" { return node }
+            if AX.string(node, kAXIdentifierAttribute) == "ChatMessagesTableView" { continue }
+            queue += AX.children(node)
+        }
+        return nil
+    }
+
     /// Any app: walk up from the field and read earlier siblings, last first, so the closest text comes first.
     static func readNearby(_ element: AXUIElement) -> [String] {
         var pieces: [String] = [], chars = 0, seen = 0
