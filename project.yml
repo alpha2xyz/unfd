@@ -29,7 +29,7 @@ targets:
     entitlements:
       path: AutoLang/App/AutoLang.entitlements
       properties:
-        com.apple.security.app-sandbox: true
+        com.apple.security.app-sandbox: false   # off on purpose: reading other apps through Accessibility needs it off
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.alpha2xyz.autolang
