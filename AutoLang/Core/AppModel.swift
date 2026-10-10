@@ -42,7 +42,7 @@ final class AppModel {
                       textDecides: defaults.object(forKey: "rule.text") as? Bool ?? true,
                       chatMemory: defaults.object(forKey: "rule.memory") as? Bool ?? true)
         westernDigits = defaults.object(forKey: "westernDigits") as? Bool ?? true
-        showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? true
+        showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? false   // macOS shows its own tag after a switch; ours is a backup
         if let data = defaults.data(forKey: "memory"), let saved = try? JSONDecoder().decode([String: Lang].self, from: data) {
             memory = saved
         }
