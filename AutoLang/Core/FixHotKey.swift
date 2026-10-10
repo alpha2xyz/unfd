@@ -23,8 +23,13 @@ final class FixHotKey {
         RegisterEventHotKey(UInt32(kVK_Space), UInt32(optionKey | shiftKey), id, GetApplicationEventTarget(), 0, &hotKeyRef)
     }
 
-    private func fire() {
+    /// His fingers are still on ⌥⇧ when the hotkey fires; wait until they are up (max 0.5 s) before posting ⌘C.
+    private func fire(waited: Int = 0) {
         guard AXIsProcessTrusted() else { return }
+        if waited < 25, !NSEvent.modifierFlags.intersection([.option, .shift, .command, .control]).isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { self.fire(waited: waited + 1) }
+            return
+        }
         if converter == nil { converter = LayoutConverter() }
         guard let converter else { return }
         let pasteboard = NSPasteboard.general
@@ -52,7 +57,7 @@ final class FixHotKey {
     }
 
     private static func press(_ key: UInt16, flags: CGEventFlags) {
-        let source = CGEventSource(stateID: .combinedSessionState)
+        let source = CGEventSource(stateID: .privateState)
         for down in [true, false] {
             let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
             event?.flags = flags

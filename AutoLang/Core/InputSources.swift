@@ -42,7 +42,7 @@ enum InputSources {
         let langs = InputSourceIDs.languages(source)
         if langs.first == "ar" { return .ar }
         if let id = InputSourceIDs.string(source, kTISPropertyInputSourceID), id.contains("Arabic") { return .ar }
-        return langs.isEmpty ? nil : .en
+        return .en
     }
 
     static func isArabic123Enabled() -> Bool {

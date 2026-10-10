@@ -66,6 +66,12 @@ final class AppModel {
     private func startWhenTrusted() {
         trusted = AXIsProcessTrusted()
         if trusted { watcher.start(); return }
+        // First run: show the system permission dialog once, without waiting for him to open the panel.
+        let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        if !isTestHost, !defaults.bool(forKey: "promptedOnce") {
+            defaults.set(true, forKey: "promptedOnce")
+            AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        }
         trustTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, AXIsProcessTrusted() else { return }
@@ -116,7 +122,11 @@ final class AppModel {
         let box = ElementBox(element: element)
         Task.detached(priority: .userInitiated) {
             let field = ContextReader.fieldInfo(box.element, bundleID: bundleID)
-            guard field.isTextEntry else { return }
+            guard field.isTextEntry else {
+                // Not a text field: a manual switch now must not be saved to the last chat.
+                await MainActor.run { [weak self] in self?.lastChatKey = nil }
+                return
+            }
             let context = ContextReader.read(box.element, bundleID: bundleID)
             let detected = ScriptDetector.detect(context.texts)
             await MainActor.run { [weak self] in
