@@ -23,6 +23,8 @@ targets:
       path: AutoLang/App/Info.plist
       properties:
         CFBundleDisplayName: "AutoLang"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         CFBundleDevelopmentRegion: en
         LSApplicationCategoryType: public.app-category.productivity
