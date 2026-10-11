@@ -7,6 +7,7 @@ struct PermissionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("يحتاج AutoLang إذن «تسهيلات الاستخدام» مرة وحدة").font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
             Text("عشان يعرف أي خانة أنت فيها ويقرأ آخر الرسائل. النص يُقرأ على جهازك فقط ولا يُحفظ ولا يُرسل.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

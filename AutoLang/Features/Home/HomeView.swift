@@ -64,9 +64,11 @@ struct HomeView: View {
     /// Label on one side, switch on the other, so every switch lines up.
     private func row(_ label: Text, _ isOn: Binding<Bool>) -> some View {
         HStack {
-            label
+            label.accessibilityHidden(true)
             Spacer(minLength: 8)
+            // VoiceOver reads the row's text as the switch's name.
             Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                .accessibilityLabel(label)
         }
     }
 

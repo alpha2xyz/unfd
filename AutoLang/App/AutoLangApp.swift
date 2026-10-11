@@ -14,9 +14,16 @@ struct AutoLangApp: App {
         #endif
     }
 
+    /// DEBUG only: `--args -showPanel YES` opens the main panel without the permission (for scripted checks).
+    #if DEBUG
+    private static let debugShowPanel = UserDefaults.standard.bool(forKey: "showPanel")
+    #else
+    private static let debugShowPanel = false
+    #endif
+
     var body: some Scene {
         MenuBarExtra {
-            HomeView(model: model)
+            HomeView(model: model, forceTrusted: Self.debugShowPanel)
                 .frame(width: 320)
                 .environment(\.layoutDirection, .rightToLeft)
         } label: {
