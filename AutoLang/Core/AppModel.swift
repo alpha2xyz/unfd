@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import ApplicationServices
 import Observation
 import ServiceManagement
@@ -35,12 +36,18 @@ final class AppModel {
     @ObservationIgnored private let indicator = CaretIndicator()
     @ObservationIgnored private var trustTimer: Timer?
     @ObservationIgnored private var readGeneration = 0
+    @ObservationIgnored private var focusIsTextEntry = false
+    @ObservationIgnored private var slash = SlashMode()
+    @ObservationIgnored private var beforeSlash: (Lang?, Reason?)
+    @ObservationIgnored private var keyMonitor: Any?
 
     init() {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
         rules = Rules(linkFields: defaults.object(forKey: "rule.links") as? Bool ?? true,
+                      systemFields: defaults.object(forKey: "rule.system") as? Bool ?? true,
                       textDecides: defaults.object(forKey: "rule.text") as? Bool ?? true,
-                      chatMemory: defaults.object(forKey: "rule.memory") as? Bool ?? true)
+                      chatMemory: defaults.object(forKey: "rule.memory") as? Bool ?? true,
+                      slashCommands: defaults.object(forKey: "rule.slash") as? Bool ?? true)
         westernDigits = defaults.object(forKey: "westernDigits") as? Bool ?? true
         showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? false   // macOS shows its own tag after a switch; ours is a backup
         if let data = defaults.data(forKey: "memory"), let saved = try? JSONDecoder().decode([String: Lang].self, from: data) {
@@ -49,7 +56,11 @@ final class AppModel {
         manualToday = defaults.string(forKey: "manual.day") == Self.today ? defaults.integer(forKey: "manual.count") : 0
 
         watcher.onFocusChange = { [weak self] element, app in self?.focusChanged(element, app) }
-        hotKey.onFix = { [weak self] lang in self?.switchTo(lang, reason: .fix) }
+        hotKey.onFix = { [weak self] lang in
+            guard let self else { return }
+            switchTo(lang, reason: .fix)
+            manualPlace = lastPlace   // the fixed language holds for this place, like a manual press
+        }
         hotKey.register()
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"), object: nil, queue: .main
@@ -71,7 +82,10 @@ final class AppModel {
 
     private func startWhenTrusted() {
         trusted = AXIsProcessTrusted()
-        if trusted { watcher.start(); return }
+        #if DEBUG
+        if defaults.string(forKey: "snapshotDir") != nil { return }   // snapshot runs draw only; never switch his keyboard
+        #endif
+        if trusted { startWatching(); return }
         // First run: show the system permission dialog once, without waiting for him to open the panel.
         let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         if !isTestHost, !defaults.bool(forKey: "promptedOnce") {
@@ -84,8 +98,18 @@ final class AppModel {
                 self.trustTimer?.invalidate()
                 self.trustTimer = nil
                 self.trusted = true
-                self.watcher.start()
+                self.startWatching()
             }
+        }
+    }
+
+    private func startWatching() {
+        watcher.start()
+        // Key presses, only to spot a "/" at a word start and the key that ends the command. Listen-only:
+        // nothing is blocked, changed or saved. Covered by the Accessibility permission.
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .leftMouseDown]) { [weak self] event in
+            MainActor.assumeIsolated { self?.keyPressed(event) }
         }
     }
 
@@ -130,7 +154,11 @@ final class AppModel {
             let field = ContextReader.fieldInfo(box.element, bundleID: bundleID)
             guard field.isTextEntry else {
                 // Not a text field: a manual switch now must not be saved to the last chat.
-                await MainActor.run { [weak self] in self?.lastChatKey = nil }
+                await MainActor.run { [weak self] in
+                    self?.lastChatKey = nil
+                    self?.focusIsTextEntry = false
+                    self?.slash.reset()
+                }
                 return
             }
             let context = ContextReader.read(box.element, bundleID: bundleID)
@@ -143,18 +171,20 @@ final class AppModel {
     }
 
     private func apply(_ context: FieldContext, detected: Lang?, appName: String, element: ElementBox) {
+        focusIsTextEntry = true
         let isLink = context.field.isLinkField
-        lastChatKey = isLink ? nil : context.chatKey
+        let isSystem = context.field.isSystemField
+        lastChatKey = isLink || isSystem ? nil : context.chatKey
         lastElement = element
         // A manual switch holds for this place (this field type, this chat or window) until he moves elsewhere,
         // so a repeated focus event can never flip his choice back while he types.
-        let place = isLink ? "\(context.field.bundleID)|link" : context.chatKey
-        if place != lastPlace { manualPlace = nil; lastPlace = place }
-        if manualPlace == place { return }
+        let place = isLink ? "\(context.field.bundleID)|link" : isSystem ? "\(context.field.bundleID)|system" : context.chatKey
+        if place != lastPlace { manualPlace = nil; lastPlace = place; slash.reset() }
+        if manualPlace == place || slash.isActive { return }
         nowApp = appName
-        nowPlace = isLink ? "خانة رابط" : context.chatName
-        guard let (lang, reason) = Decider.decide(isLinkField: isLink, remembered: memory[context.chatKey],
-                                                  detected: detected, rules: rules) else {
+        nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.chatName
+        guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, systemLang: Lang.system(),
+                                                  remembered: memory[context.chatKey], detected: detected, rules: rules) else {
             nowLang = nil; nowReason = nil
             return
         }
@@ -171,6 +201,37 @@ final class AppModel {
         if showIndicator, before != lang, let element = lastElement?.element { indicator.show(lang, at: element) }
     }
 
+    /// Slash commands: English after a "/" at a word start, the earlier language back on Space, Return, Tab or Escape.
+    private func keyPressed(_ event: NSEvent) {
+        guard enabled, rules.slashCommands, focusIsTextEntry else { return }
+        let key: SlashMode.Key
+        if event.type != .keyDown || !event.modifierFlags.intersection([.command, .control]).isEmpty {
+            key = .other
+        } else {
+            switch Int(event.keyCode) {
+            case kVK_Space: key = .space
+            case kVK_Return, kVK_ANSI_KeypadEnter: key = .enter
+            case kVK_Tab: key = .tab
+            case kVK_Escape: key = .escape
+            case kVK_Delete: key = .delete
+            default:
+                let typed = event.characters ?? ""
+                key = typed.unicodeScalars.contains { (0xF700...0xF8FF).contains($0.value) } ? .other : .text(typed)   // arrows, F-keys
+            }
+        }
+        switch slash.press(key, current: currentLang) {
+        case .toEnglish?:
+            beforeSlash = (nowLang, nowReason)
+            if currentLang != .en { switchTo(.en, reason: .slash) }
+        case .restore(let lang)?:
+            // Only undo our own switch: if he changed the language during the command, leave his choice.
+            if lang != .en, currentLang == .en { switchTo(lang, reason: .slash) }
+            (nowLang, nowReason) = beforeSlash
+        case nil:
+            break
+        }
+    }
+
     /// Any keyboard change. If the app did not cause it, he pressed the switch key: count it and remember it for this chat.
     private func inputSourceChanged() {
         let lang = InputSources.currentLang()
@@ -179,6 +240,7 @@ final class AppModel {
         if defaults.string(forKey: "manual.day") != Self.today { manualToday = 0 }
         manualToday += 1
         manualPlace = lastPlace
+        slash.reset()
         if rules.chatMemory, let key = lastChatKey { memory[key] = lang; nowLang = lang; nowReason = .memory }
         save()
     }
@@ -193,8 +255,10 @@ final class AppModel {
     private func save() {
         defaults.set(enabled, forKey: "enabled")
         defaults.set(rules.linkFields, forKey: "rule.links")
+        defaults.set(rules.systemFields, forKey: "rule.system")
         defaults.set(rules.textDecides, forKey: "rule.text")
         defaults.set(rules.chatMemory, forKey: "rule.memory")
+        defaults.set(rules.slashCommands, forKey: "rule.slash")
         defaults.set(westernDigits, forKey: "westernDigits")
         defaults.set(showIndicator, forKey: "showIndicator")
         defaults.set(try? JSONEncoder().encode(memory), forKey: "memory")

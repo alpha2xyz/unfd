@@ -22,8 +22,10 @@ struct HomeView: View {
 
             Divider()
             row(Text("شريط العنوان والروابط ← إنجليزي"), $model.rules.linkFields)
+            row(Text("بحث Spotlight والإعدادات ← لغة الجهاز"), $model.rules.systemFields)
             row(Text("الخانة تأخذ لغة آخر الكلام"), $model.rules.textDecides)
             row(Text("تذكّر لغتي لكل محادثة"), $model.rules.chatMemory)
+            row(Text("بعد / ← إنجليزي، والمسافة ترجّع لغتك"), $model.rules.slashCommands)
             row(Text("الأرقام دائماً 1234"), $model.westernDigits)
             row(Text("أظهر اللغة عند المؤشر لما تتغير"), $model.showIndicator)
             if model.westernDigits && !model.arabic123Enabled {

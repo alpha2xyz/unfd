@@ -55,6 +55,10 @@ nonisolated struct FieldInfo: Sendable, Equatable {
                     "e-mail", "email", "url", "website", "web site", "البريد", "الإيميل", "الرابط", "عنوان الموقع"]
         return keys.contains { haystack.contains($0) }
     }
+
+    /// Spotlight and System Settings: what he types there (settings names, apps, files) follows the Mac's language.
+    static let systemApps: Set<String> = ["com.apple.Spotlight", "com.apple.systempreferences"]
+    var isSystemField: Bool { Self.systemApps.contains(bundleID) }
 }
 
 /// What the app read around the focused field.
@@ -90,7 +94,7 @@ nonisolated enum ContextReader {
         var chatName = ""
         var texts: [String] = []
 
-        if !field.isLinkField {
+        if !field.isLinkField && !field.isSystemField {
             if bundleID == "net.whatsapp.WhatsApp", let window {
                 (chatName, texts) = readWhatsApp(window)
             }

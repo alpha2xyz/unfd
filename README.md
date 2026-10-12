@@ -24,10 +24,12 @@ There is no download yet. Build it from source (below), then:
 ## Features
 
 - **Address bars and links in English:** Safari and Chrome address bars, email, website and password fields.
-- **The text decides:** clicking into a field reads the last messages or the text near the cursor and picks Arabic or English. It switches only when you move to a new field, never in the middle of a word.
+- **The text decides:** clicking into a field reads the last messages or the text near the cursor and picks Arabic or English. It switches when you move to a new field, never in the middle of a word (slash commands below are the one exception).
 - **Memory per chat:** switch by hand once in a chat and AutoLang keeps that language for it.
+- **Spotlight and System Settings follow your Mac's language:** search for a setting or an app in the language your Mac uses, even right after an Arabic chat.
+- **Slash commands in English:** a `/` at the start of a word (Claude, terminals, Slack) switches to English; Space, Return, Tab or Escape brings back the language you had before the `/`. A date like 10/2026 does not trigger it.
 - **Numbers always 1234:** when it picks Arabic, it uses Apple's "Arabic – 123" layout, the same letters with 1234567890 on the number row.
-- **Fix button `⌥⇧Space`:** turns the last word or the selected text typed in the wrong layout into the right one (`hgsghl` → السلام, `١٢٣` → 123).
+- **Fix button `⌥⇧Space`:** turns the last word or the selected text typed in the wrong layout into the right one (`hgsghl` → السلام, `١٢٣` → 123), and the keyboard stays in that language for the field.
 - **Manual press counter:** shows how many times today you still pressed the language key.
 
 ## How to use
@@ -39,12 +41,13 @@ There is no download yet. Build it from source (below), then:
 
 ## Privacy
 
-AutoLang reads the focused field and a few nearby messages on your Mac, only to choose a language. Nothing is saved except the chat name and its language (for the memory), and nothing leaves your Mac. The app makes no network connections.
+AutoLang reads the focused field and a few nearby messages on your Mac, only to choose a language. For slash commands it watches which keys you press, only to spot a `/` and the key that ends the command; keys are never saved. Nothing is saved except the chat name and its language (for the memory), and nothing leaves your Mac. The app makes no network connections.
 
 ## Known issues
 
 - The app is signed ad hoc, so macOS may ask for the Accessibility permission again after each new build.
 - Apps that hide their text from Accessibility fall back to the per-chat memory.
+- Slash commands do not work where macOS hides key presses from other apps: password fields, and Terminal with Secure Keyboard Entry on.
 
 ## Build from source
 
