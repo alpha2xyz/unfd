@@ -11,6 +11,7 @@ TODO.md
 # Generated Xcode project (source of truth is project.yml)
 *.xcodeproj
 build/
+build.noindex/
 
 # macOS
 .DS_Store
