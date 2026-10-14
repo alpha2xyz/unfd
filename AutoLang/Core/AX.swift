@@ -56,8 +56,11 @@ nonisolated struct FieldInfo: Sendable, Equatable {
         return keys.contains { haystack.contains($0) }
     }
 
+    /// Spotlight's search panel: on macOS 27 it belongs to the Siri process (`com.apple.campo`, probed live
+    /// 2026-10-14); earlier macOS versions use `com.apple.Spotlight`.
+    static let spotlightApps = ["com.apple.campo", "com.apple.Spotlight"]
     /// Spotlight and System Settings: what he types there (settings names, apps, files) follows the Mac's language.
-    static let systemApps: Set<String> = ["com.apple.Spotlight", "com.apple.systempreferences"]
+    static let systemApps = Set(spotlightApps + ["com.apple.systempreferences"])
     var isSystemField: Bool { Self.systemApps.contains(bundleID) }
 }
 

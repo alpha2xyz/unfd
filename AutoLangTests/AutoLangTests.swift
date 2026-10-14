@@ -59,6 +59,7 @@ struct SystemFieldTests {
 
     @Test func spotlightAndSettingsAreSystemFields() {
         #expect(field("com.apple.Spotlight").isSystemField)
+        #expect(field("com.apple.campo").isSystemField)   // macOS 27: Spotlight's panel lives in the Siri process
         #expect(field("com.apple.systempreferences", subrole: "AXSearchField").isSystemField)
         #expect(!field("net.whatsapp.WhatsApp").isSystemField)
     }
