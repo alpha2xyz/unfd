@@ -218,3 +218,24 @@ struct LearningRulesTests {
         #expect(ScriptDetector.detect(["ابحث عن رمز otp في الايميل"]) == .ar)
     }
 }
+
+struct ChatMemoryTests {
+    @Test func keepsOnlyWhatsAppChats() {
+        let saved: [String: Lang] = [
+            "net.whatsapp.WhatsApp|Ahmed": .ar,
+            "net.whatsapp.WhatsApp|\u{202A}+966 50 000 0000\u{202C}": .en,
+            "net.whatsapp.WhatsApp|\u{200E}WhatsApp": .ar,
+            "com.anthropic.claudefordesktop|Claude": .ar,
+            "com.apple.TextEdit|Untitled": .en,
+        ]
+        let kept = AppModel.chatOnly(saved)
+        #expect(Set(kept.keys) == ["net.whatsapp.WhatsApp|Ahmed", "net.whatsapp.WhatsApp|\u{202A}+966 50 000 0000\u{202C}"])
+        #expect(kept["net.whatsapp.WhatsApp|Ahmed"] == .ar)
+    }
+    @Test func windowTitleOfWhatsAppIsNotAChat() {
+        #expect(AppModel.chatOnly(["net.whatsapp.WhatsApp|WhatsApp": .ar, "net.whatsapp.WhatsApp|\u{200F} WhatsApp\u{200E}": .en]).isEmpty)
+    }
+    @Test func otherAppsAreDropped() {
+        #expect(AppModel.chatOnly(["com.anthropic.claudefordesktop|Claude": .ar, "com.apple.TextEdit|Untitled": .en]).isEmpty)
+    }
+}

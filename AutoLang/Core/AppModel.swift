@@ -58,7 +58,7 @@ final class AppModel {
         westernDigits = defaults.object(forKey: "westernDigits") as? Bool ?? true
         showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? false   // macOS shows its own tag after a switch; ours is a backup
         if let data = defaults.data(forKey: "memory"), let saved = try? JSONDecoder().decode([String: Lang].self, from: data) {
-            memory = saved
+            memory = Self.chatOnly(saved)   // older versions also saved window-title entries; those are dropped
         }
         if let data = defaults.data(forKey: "learned"), let saved = try? JSONDecoder().decode(Learner.self, from: data) {
             learner = saved
@@ -191,11 +191,26 @@ final class AppModel {
         }
     }
 
+    /// Chat memory holds WhatsApp chats only. Drops entries from other apps and the "WhatsApp" window title,
+    /// which older versions saved when no chat name was read. Bidi marks around a name do not count.
+    nonisolated static func chatOnly(_ memory: [String: Lang]) -> [String: Lang] {
+        let prefix = "net.whatsapp.WhatsApp|"
+        let marks: Set<Unicode.Scalar> = ["\u{200E}", "\u{200F}", "\u{202A}", "\u{202B}", "\u{202C}", "\u{202D}", "\u{202E}",
+                                          "\u{2066}", "\u{2067}", "\u{2068}", "\u{2069}"]
+        return memory.filter { key, _ in
+            guard key.hasPrefix(prefix) else { return false }
+            var scalars = String.UnicodeScalarView()
+            scalars.append(contentsOf: key.dropFirst(prefix.count).unicodeScalars.filter { !marks.contains($0) })
+            let name = String(scalars).trimmingCharacters(in: .whitespacesAndNewlines)
+            return !name.isEmpty && name != "WhatsApp"
+        }
+    }
+
     private func apply(_ context: FieldContext, detected: Lang?, appName: String, element: ElementBox) {
         focusIsTextEntry = true
         let isLink = context.field.isLinkField
         let isSystem = context.field.isSystemField
-        lastChatKey = isLink || isSystem ? nil : context.chatKey
+        lastChatKey = !isLink && !isSystem && context.isChat ? context.chatKey : nil   // memory is for WhatsApp chats only
         lastElement = element
         // A manual switch holds for this place (this field type, this chat or window) until he moves elsewhere,
         // so a repeated focus event can never flip his choice back while he types.
@@ -204,9 +219,9 @@ final class AppModel {
         if place != lastPlace { manualPlace = nil; lastPlace = place; slash.reset(); typedSinceFocus = 0 }
         if manualPlace == place || slash.isActive { return }
         nowApp = appName
-        nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.chatName
+        nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.isChat ? context.chatName : ""
         guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, systemLang: Lang.system(),
-                                                  remembered: memory[context.chatKey],
+                                                  remembered: context.isChat ? memory[context.chatKey] : nil,
                                                   learned: lastLearnKey.flatMap { learner.learned(for: $0) },
                                                   detected: detected, rules: rules) else {
             nowLang = nil; nowReason = nil
@@ -263,7 +278,7 @@ final class AppModel {
     }
 
     /// Any keyboard change. If the app did not cause it, he pressed the switch key. A press before typing anything
-    /// corrects the app (counted, remembered for the chat, learned for the field kind); a press in the middle of
+    /// corrects the app (counted, remembered for the WhatsApp chat, learned for the field kind); a press in the middle of
     /// text only holds for this place and teaches nothing.
     private func inputSourceChanged() {
         let lang = InputSources.currentLang()

@@ -89,7 +89,8 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("الآن").font(.caption).foregroundStyle(.secondary)
             if let lang = model.nowLang, let reason = model.nowReason {
-                Text("\u{200F}\(model.nowApp)\(model.nowPlace.isEmpty ? "" : " · \(model.nowPlace)") ← \(lang.arabicName)")
+                // Each name sits in its own isolate (U+2068 ... U+2069) so two English names never merge in the RTL line.
+                Text("\u{200F}\u{2068}\(model.nowApp)\u{2069}\(model.nowPlace.isEmpty ? "" : " · \u{2068}\(model.nowPlace)\u{2069}") ← \(lang.arabicName)")
                     .lineLimit(2)
                 Text("\u{200F}السبب: \(reason.arabic)").font(.caption).foregroundStyle(.secondary)
             } else {
