@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import AutoLang
 
@@ -141,5 +142,79 @@ struct SlashModeTests {
         mode.reset()
         #expect(!mode.isActive)
         #expect(mode.press(.space, current: .en) == nil)
+    }
+}
+
+struct LearnerTests {
+    func learner(_ langs: [Lang], key: String = "k") -> Learner {
+        var l = Learner()
+        for lang in langs { l.record(lang, for: key) }
+        return l
+    }
+
+    @Test func threeInARowLearns() { #expect(learner([.ar, .ar, .ar]).learned(for: "k") == .ar) }
+    @Test func twoIsNotEnough() { #expect(learner([.ar, .ar]).learned(for: "k") == nil) }
+    @Test func mixedIsNil() { #expect(learner([.ar, .en, .ar]).learned(for: "k") == nil) }
+    @Test func lastThreeDecide() {
+        let l = learner([.en, .en, .en, .ar, .ar, .ar])
+        #expect(l.learned(for: "k") == .ar)
+        #expect(l.corrections["k"]?.count == 5)   // only the last 5 are kept
+    }
+    @Test func clearForgets() {
+        var l = learner([.ar, .ar, .ar])
+        #expect(l.count == 1)
+        l.clear()
+        #expect(l.learned(for: "k") == nil)
+        #expect(l.count == 0)
+    }
+    @Test func keysAreSeparate() {
+        var l = learner([.ar, .ar, .ar])
+        l.record(.en, for: "other")
+        #expect(l.learned(for: "other") == nil)
+        #expect(l.count == 1)
+    }
+    @Test func codableRoundTrip() throws {
+        let l = learner([.en, .ar, .ar, .ar])
+        let back = try JSONDecoder().decode(Learner.self, from: JSONEncoder().encode(l))
+        #expect(back == l)
+        #expect(back.learned(for: "k") == .ar)
+    }
+}
+
+struct PressClassifierTests {
+    @Test func emptyFieldIsCorrection() { #expect(Learner.classify(typedSinceFocus: 0, fieldValue: "") == .correction) }
+    @Test func whitespaceOnlyIsCorrection() { #expect(Learner.classify(typedSinceFocus: 0, fieldValue: " \n ") == .correction) }
+    @Test func unreadableIsCorrection() { #expect(Learner.classify(typedSinceFocus: 0, fieldValue: nil) == .correction) }
+    @Test func textInFieldIsMidText() { #expect(Learner.classify(typedSinceFocus: 0, fieldValue: "ابحث عن رمز") == .midText) }
+    @Test func typedThenEmptiedIsMidText() { #expect(Learner.classify(typedSinceFocus: 5, fieldValue: "") == .midText) }
+}
+
+struct LearningRulesTests {
+    func field(_ bundleID: String, role: String = "AXTextArea", subrole: String = "", labels: [String] = []) -> FieldInfo {
+        FieldInfo(bundleID: bundleID, role: role, subrole: subrole, identifier: "", labels: labels, ownText: "")
+    }
+
+    @Test func plainFieldGetsAKey() {
+        #expect(Learner.key(for: field("com.apple.Notes"), isChat: false) == "com.apple.Notes|AXTextArea|")
+    }
+    @Test func excludedPlacesGetNoKey() {
+        #expect(Learner.key(for: field("com.apple.Notes", labels: ["Email"]), isChat: false) == nil)       // link field
+        #expect(Learner.key(for: field("com.apple.Spotlight"), isChat: false) == nil)                       // system field
+        #expect(Learner.key(for: field("net.whatsapp.WhatsApp"), isChat: true) == nil)                      // recognised chat
+        #expect(Learner.key(for: field("com.google.Chrome"), isChat: false) == nil)                         // browser
+        #expect(Learner.key(for: field("com.apple.Safari"), isChat: false) == nil)
+    }
+    @Test func precedenceWithLearning() {
+        let all = Rules()
+        #expect(Decider.decide(isLinkField: false, remembered: .en, learned: .ar, detected: .ar, rules: all)! == (.en, .memory))
+        #expect(Decider.decide(isLinkField: false, remembered: nil, learned: .en, detected: .ar, rules: all)! == (.en, .learned))
+        #expect(Decider.decide(isLinkField: true, remembered: nil, learned: .ar, detected: .ar, rules: all)?.0 == .en)
+        #expect(Decider.decide(isLinkField: false, isSystemField: true, systemLang: .en,
+                               remembered: nil, learned: .ar, detected: .ar, rules: all)! == (.en, .systemField))
+        var off = all; off.learn = false
+        #expect(Decider.decide(isLinkField: false, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.ar, .text(.ar)))
+    }
+    @Test func mixedSentenceStaysArabic() {
+        #expect(ScriptDetector.detect(["ابحث عن رمز otp في الايميل"]) == .ar)
     }
 }

@@ -18,6 +18,7 @@ nonisolated enum Reason: Sendable, Equatable {
     case linkField
     case systemField
     case memory
+    case learned
     case text(Lang)
     case fix
     case slash
@@ -27,6 +28,7 @@ nonisolated enum Reason: Sendable, Equatable {
         case .linkField: "خانة رابط أو عنوان"
         case .systemField: "خانة من النظام، تتبع لغة الجهاز"
         case .memory: "اخترتها بيدك لهذي المحادثة"
+        case .learned: "تعلّمتها من تصحيحاتك في هذا البرنامج"
         case .text(.ar): "آخر الكلام بالعربي"
         case .text(.en): "آخر الكلام بالإنجليزي"
         case .fix: "زر التصليح"
@@ -42,17 +44,19 @@ nonisolated struct Rules: Sendable, Equatable {
     var textDecides = true
     var chatMemory = true
     var slashCommands = true
+    var learn = true
 }
 
 /// One place for the precedence: link field > system field (Spotlight, System Settings) > per-chat memory
-/// > detected text > leave unchanged.
+/// > learned from his corrections > detected text > leave unchanged.
 nonisolated enum Decider {
     static func decide(isLinkField: Bool, isSystemField: Bool = false, systemLang: Lang = .en,
-                       remembered: Lang?, detected: Lang?, rules: Rules) -> (Lang, Reason)? {
+                       remembered: Lang?, learned: Lang? = nil, detected: Lang?, rules: Rules) -> (Lang, Reason)? {
         if rules.linkFields, isLinkField { return (.en, .linkField) }
         if isLinkField { return nil }
         if rules.systemFields, isSystemField { return (systemLang, .systemField) }
         if rules.chatMemory, let remembered { return (remembered, .memory) }
+        if rules.learn, let learned { return (learned, .learned) }
         if rules.textDecides, let detected { return (detected, .text(detected)) }
         return nil
     }

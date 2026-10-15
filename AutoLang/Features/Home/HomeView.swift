@@ -25,6 +25,7 @@ struct HomeView: View {
             row(Text("بحث Spotlight والإعدادات ← لغة الجهاز"), $model.rules.systemFields)
             row(Text("الخانة تأخذ لغة آخر الكلام"), $model.rules.textDecides)
             row(Text("تذكّر لغتي لكل محادثة"), $model.rules.chatMemory)
+            row(Text("تعلّم من تصحيحاتي"), $model.rules.learn)
             row(Text("بعد / ← إنجليزي، والمسافة ترجّع لغتك"), $model.rules.slashCommands)
             row(Text("الأرقام دائماً 1234"), $model.westernDigits)
             row(Text("أظهر اللغة عند المؤشر لما تتغير"), $model.showIndicator)
@@ -44,14 +45,24 @@ struct HomeView: View {
 
             Divider()
             HStack {
-                Text("ضغطاتك اليدوية على زر اللغة اليوم")
+                Text("تصحيحاتك لاختيار البرنامج اليوم")
                 Spacer()
-                Text(String(model.manualToday)).font(.headline.monospacedDigit())
+                Text(String(model.correctionsToday)).font(.headline.monospacedDigit())
+            }
+            HStack {
+                Text("تبديل وسط الكتابة اليوم").foregroundStyle(.secondary)
+                Spacer()
+                Text(String(model.midTextToday)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
             HStack {
                 Text("محادثات محفوظة: \(String(model.memory.count))").foregroundStyle(.secondary)
                 Spacer()
                 Button("مسح") { model.clearMemory() }.controlSize(.small).disabled(model.memory.isEmpty)
+            }
+            HStack {
+                Text("أماكن متعلَّمة: \(String(model.learner.count))").foregroundStyle(.secondary)
+                Spacer()
+                Button("مسح") { model.clearLearned() }.controlSize(.small).disabled(model.learner.count == 0)
             }
             row(Text("يشتغل مع تشغيل الجهاز"), Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
 

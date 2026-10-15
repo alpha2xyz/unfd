@@ -70,6 +70,7 @@ nonisolated struct FieldContext: Sendable {
     var chatKey: String
     var chatName: String
     var texts: [String]        // closest first
+    var isChat = false         // true only when the WhatsApp reader returned a chat name
 }
 
 /// Reads the focused field and the text near it. Runs off the main thread; every walk is capped.
@@ -106,7 +107,7 @@ nonisolated enum ContextReader {
             if own.arabic + own.latin >= 2 { texts.insert(field.ownText, at: 0) }
         }
         let name = chatName.isEmpty ? windowTitle : chatName
-        return FieldContext(field: field, chatKey: "\(bundleID)|\(name)", chatName: name, texts: texts)
+        return FieldContext(field: field, chatKey: "\(bundleID)|\(name)", chatName: name, texts: texts, isChat: !chatName.isEmpty)
     }
 
     /// WhatsApp (probed 2026-10-11): messages are `WAMessageBubbleTableViewCell` items in `ChatMessagesTableView`;
