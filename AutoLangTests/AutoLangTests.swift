@@ -214,6 +214,21 @@ struct LearningRulesTests {
         var off = all; off.learn = false
         #expect(Decider.decide(isLinkField: false, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.ar, .text(.ar)))
     }
+    @Test func fieldOwnTextWinsOverMemoryAndLearned() {
+        let all = Rules()
+        #expect(Decider.decide(isLinkField: false, fieldText: .ar, remembered: nil, learned: .en, detected: .en, rules: all)! == (.ar, .text(.ar)))
+        #expect(Decider.decide(isLinkField: false, fieldText: .en, remembered: .ar, learned: nil, detected: .ar, rules: all)! == (.en, .text(.en)))
+        #expect(Decider.decide(isLinkField: true, fieldText: .ar, remembered: nil, detected: .ar, rules: all)?.0 == .en)
+        var off = all; off.textDecides = false
+        #expect(Decider.decide(isLinkField: false, fieldText: .ar, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.en, .learned))
+        #expect(Decider.decide(isLinkField: false, fieldText: nil, remembered: nil, learned: .en, detected: .ar, rules: all)! == (.en, .learned))
+    }
+    @Test func ownTextNeedsTwoLetters() {
+        #expect(ScriptDetector.detectOwn("") == nil)
+        #expect(ScriptDetector.detectOwn("م 1") == nil)
+        #expect(ScriptDetector.detectOwn("مرحبا") == .ar)
+        #expect(ScriptDetector.detectOwn("hello") == .en)
+    }
     @Test func mixedSentenceStaysArabic() {
         #expect(ScriptDetector.detect(["ابحث عن رمز otp في الايميل"]) == .ar)
     }

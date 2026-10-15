@@ -47,14 +47,16 @@ nonisolated struct Rules: Sendable, Equatable {
     var learn = true
 }
 
-/// One place for the precedence: link field > system field (Spotlight, System Settings) > per-chat memory
-/// > learned from his corrections > detected text > leave unchanged.
+/// One place for the precedence: link field > system field (Spotlight, System Settings) > the field's own text
+/// (what he already wrote there) > per-chat memory > learned from his corrections > nearby text > leave unchanged.
 nonisolated enum Decider {
     static func decide(isLinkField: Bool, isSystemField: Bool = false, systemLang: Lang = .en,
-                       remembered: Lang?, learned: Lang? = nil, detected: Lang?, rules: Rules) -> (Lang, Reason)? {
+                       fieldText: Lang? = nil, remembered: Lang?, learned: Lang? = nil, detected: Lang?,
+                       rules: Rules) -> (Lang, Reason)? {
         if rules.linkFields, isLinkField { return (.en, .linkField) }
         if isLinkField { return nil }
         if rules.systemFields, isSystemField { return (systemLang, .systemField) }
+        if rules.textDecides, let fieldText { return (fieldText, .text(fieldText)) }
         if rules.chatMemory, let remembered { return (remembered, .memory) }
         if rules.learn, let learned { return (learned, .learned) }
         if rules.textDecides, let detected { return (detected, .text(detected)) }

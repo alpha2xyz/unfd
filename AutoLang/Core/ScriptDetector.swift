@@ -31,4 +31,12 @@ nonisolated enum ScriptDetector {
         guard arabic + latin > 0 else { return nil }
         return arabic >= latin ? .ar : .en
     }
+
+    /// The language of the text already in the focused field, or nil when it holds fewer than 2 letters.
+    /// Uses the same 2-letter threshold as the field's own text in the nearby-text list.
+    static func detectOwn(_ text: String) -> Lang? {
+        let counts = letterCounts(text)
+        guard counts.arabic + counts.latin >= 2 else { return nil }
+        return detect([text])
+    }
 }

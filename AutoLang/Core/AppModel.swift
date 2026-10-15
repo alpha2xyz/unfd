@@ -184,9 +184,10 @@ final class AppModel {
             }
             let context = ContextReader.read(box.element, bundleID: bundleID)
             let detected = ScriptDetector.detect(context.texts)
+            let fieldText = ScriptDetector.detectOwn(context.field.ownText)
             await MainActor.run { [weak self] in
                 guard let self, generation == self.readGeneration else { return }
-                self.apply(context, detected: detected, appName: appName, element: box)
+                self.apply(context, detected: detected, fieldText: fieldText, appName: appName, element: box)
             }
         }
     }
@@ -206,7 +207,7 @@ final class AppModel {
         }
     }
 
-    private func apply(_ context: FieldContext, detected: Lang?, appName: String, element: ElementBox) {
+    private func apply(_ context: FieldContext, detected: Lang?, fieldText: Lang?, appName: String, element: ElementBox) {
         focusIsTextEntry = true
         let isLink = context.field.isLinkField
         let isSystem = context.field.isSystemField
@@ -221,6 +222,7 @@ final class AppModel {
         nowApp = appName
         nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.isChat ? context.chatName : ""
         guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, systemLang: Lang.system(),
+                                                  fieldText: fieldText,
                                                   remembered: context.isChat ? memory[context.chatKey] : nil,
                                                   learned: lastLearnKey.flatMap { learner.learned(for: $0) },
                                                   detected: detected, rules: rules) else {
