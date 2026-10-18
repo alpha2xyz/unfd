@@ -22,6 +22,7 @@ nonisolated enum Reason: Sendable, Equatable {
     case text(Lang)
     case fix
     case slash
+    case device
 
     var arabic: String {
         switch self {
@@ -33,6 +34,7 @@ nonisolated enum Reason: Sendable, Equatable {
         case .text(.en): "آخر الكلام بالإنجليزي"
         case .fix: "زر التصليح"
         case .slash: "أمر يبدأ بـ /"
+        case .device: "لغة الجهاز، الأساس لأي خانة"
         }
     }
 }
@@ -48,9 +50,10 @@ nonisolated struct Rules: Sendable, Equatable {
 }
 
 /// One place for the precedence: link field > system field (Spotlight, System Settings) > the field's own text
-/// (what he already wrote there) > per-chat memory > learned from his corrections > nearby text > leave unchanged.
+/// (what he already wrote there) > per-chat memory > learned from his corrections > last chat messages (WhatsApp chat only)
+/// > the Mac's language, the base for every other field.
 nonisolated enum Decider {
-    static func decide(isLinkField: Bool, isSystemField: Bool = false, systemLang: Lang = .en,
+    static func decide(isLinkField: Bool, isSystemField: Bool = false, isChat: Bool = false, systemLang: Lang = .en,
                        fieldText: Lang? = nil, remembered: Lang?, learned: Lang? = nil, detected: Lang?,
                        rules: Rules) -> (Lang, Reason)? {
         if rules.linkFields, isLinkField { return (.en, .linkField) }
@@ -59,7 +62,7 @@ nonisolated enum Decider {
         if rules.textDecides, let fieldText { return (fieldText, .text(fieldText)) }
         if rules.chatMemory, let remembered { return (remembered, .memory) }
         if rules.learn, let learned { return (learned, .learned) }
-        if rules.textDecides, let detected { return (detected, .text(detected)) }
-        return nil
+        if isChat, rules.textDecides, let detected { return (detected, .text(detected)) }
+        return (systemLang, .device)
     }
 }

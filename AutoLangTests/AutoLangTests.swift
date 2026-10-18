@@ -46,10 +46,10 @@ struct RulesTests {
         let all = Rules()
         #expect(Decider.decide(isLinkField: true, remembered: .ar, detected: .ar, rules: all)?.0 == .en)
         #expect(Decider.decide(isLinkField: false, remembered: .en, detected: .ar, rules: all)?.0 == .en)
-        #expect(Decider.decide(isLinkField: false, remembered: nil, detected: .ar, rules: all)?.0 == .ar)
-        #expect(Decider.decide(isLinkField: false, remembered: nil, detected: nil, rules: all) == nil)
+        #expect(Decider.decide(isLinkField: false, isChat: true, remembered: nil, detected: .ar, rules: all)?.0 == .ar)
+        #expect(Decider.decide(isLinkField: false, remembered: nil, detected: nil, rules: all)! == (.en, .device))
         var noMemory = all; noMemory.chatMemory = false
-        #expect(Decider.decide(isLinkField: false, remembered: .en, detected: .ar, rules: noMemory)?.0 == .ar)
+        #expect(Decider.decide(isLinkField: false, isChat: true, remembered: .en, detected: .ar, rules: noMemory)?.0 == .ar)
     }
 }
 
@@ -81,7 +81,7 @@ struct SystemFieldTests {
         #expect(Decider.decide(isLinkField: true, isSystemField: true, systemLang: .ar,
                                remembered: nil, detected: nil, rules: all)?.0 == .en)
         var off = all; off.systemFields = false
-        #expect(Decider.decide(isLinkField: false, isSystemField: true, systemLang: .en,
+        #expect(Decider.decide(isLinkField: false, isSystemField: true, isChat: true, systemLang: .en,
                                remembered: nil, detected: .ar, rules: off)?.0 == .ar)
     }
 }
@@ -212,7 +212,7 @@ struct LearningRulesTests {
         #expect(Decider.decide(isLinkField: false, isSystemField: true, systemLang: .en,
                                remembered: nil, learned: .ar, detected: .ar, rules: all)! == (.en, .systemField))
         var off = all; off.learn = false
-        #expect(Decider.decide(isLinkField: false, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.ar, .text(.ar)))
+        #expect(Decider.decide(isLinkField: false, isChat: true, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.ar, .text(.ar)))
     }
     @Test func fieldOwnTextWinsOverMemoryAndLearned() {
         let all = Rules()
@@ -222,6 +222,16 @@ struct LearningRulesTests {
         var off = all; off.textDecides = false
         #expect(Decider.decide(isLinkField: false, fieldText: .ar, remembered: nil, learned: .en, detected: .ar, rules: off)! == (.en, .learned))
         #expect(Decider.decide(isLinkField: false, fieldText: nil, remembered: nil, learned: .en, detected: .ar, rules: all)! == (.en, .learned))
+    }
+    @Test func deviceLanguageIsTheBase() {
+        let all = Rules()
+        #expect(Decider.decide(isLinkField: false, isChat: false, systemLang: .en, remembered: nil, detected: .ar, rules: all)! == (.en, .device))
+        #expect(Decider.decide(isLinkField: false, isChat: true, remembered: nil, detected: .ar, rules: all)! == (.ar, .text(.ar)))
+        #expect(Decider.decide(isLinkField: false, systemLang: .ar, remembered: nil, detected: nil, rules: all)! == (.ar, .device))
+        #expect(Decider.decide(isLinkField: false, systemLang: .en, remembered: nil, learned: .ar, detected: nil, rules: all)! == (.ar, .learned))
+        #expect(Decider.decide(isLinkField: false, systemLang: .en, fieldText: .ar, remembered: nil, detected: nil, rules: all)! == (.ar, .text(.ar)))
+        var noLink = all; noLink.linkFields = false
+        #expect(Decider.decide(isLinkField: true, remembered: nil, detected: nil, rules: noLink) == nil)
     }
     @Test func ownTextNeedsTwoLetters() {
         #expect(ScriptDetector.detectOwn("") == nil)

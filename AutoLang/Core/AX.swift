@@ -78,7 +78,6 @@ nonisolated enum ContextReader {
     static let maxElements = 300
     static let maxSeconds = 0.1
     static let maxPieces = 6
-    static let maxChars = 1500
 
     static func fieldInfo(_ element: AXUIElement, bundleID: String) -> FieldInfo {
         FieldInfo(
@@ -102,7 +101,6 @@ nonisolated enum ContextReader {
             if bundleID == "net.whatsapp.WhatsApp", let window {
                 (chatName, texts) = readWhatsApp(window)
             }
-            if texts.isEmpty { texts = readNearby(element) }
             let own = ScriptDetector.letterCounts(field.ownText)
             if own.arabic + own.latin >= 2 { texts.insert(field.ownText, at: 0) }
         }
@@ -143,39 +141,5 @@ nonisolated enum ContextReader {
             queue += AX.children(node)
         }
         return nil
-    }
-
-    /// Any app: walk up from the field and read earlier siblings, last first, so the closest text comes first.
-    static func readNearby(_ element: AXUIElement) -> [String] {
-        var pieces: [String] = [], chars = 0, seen = 0
-        let start = Date()
-        func budgetLeft() -> Bool {
-            pieces.count < maxPieces && chars < maxChars && seen < maxElements && Date().timeIntervalSince(start) < maxSeconds
-        }
-        func collect(_ node: AXUIElement) {
-            guard budgetLeft() else { return }
-            seen += 1
-            let role = AX.string(node, kAXRoleAttribute)
-            if role == "AXStaticText" || role == "AXHeading" {
-                let text = [AX.string(node, kAXValueAttribute), AX.string(node, kAXDescriptionAttribute)]
-                    .max { $0.count < $1.count } ?? ""
-                let counts = ScriptDetector.letterCounts(text)
-                if counts.arabic + counts.latin >= 2 { pieces.append(text); chars += text.count }
-                return
-            }
-            if role == "AXButton" || role == "AXMenuBar" || role == "AXToolbar" || role == "AXImage" { return }
-            for child in AX.children(node).reversed() { collect(child); if !budgetLeft() { return } }
-        }
-        var current = element
-        for _ in 0..<10 {
-            guard budgetLeft(), let parent = AX.element(current, kAXParentAttribute) else { break }
-            let siblings = AX.children(parent)
-            if let index = siblings.firstIndex(where: { CFEqual($0, current) }) {
-                for sibling in siblings[..<index].reversed() { collect(sibling); if !budgetLeft() { break } }
-            }
-            if AX.string(parent, kAXRoleAttribute) == "AXWindow" { break }
-            current = parent
-        }
-        return pieces
     }
 }

@@ -221,7 +221,8 @@ final class AppModel {
         if manualPlace == place || slash.isActive { return }
         nowApp = appName
         nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.isChat ? context.chatName : ""
-        guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, systemLang: Lang.system(),
+        guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, isChat: context.isChat,
+                                                  systemLang: Lang.system(),
                                                   fieldText: fieldText,
                                                   remembered: context.isChat ? memory[context.chatKey] : nil,
                                                   learned: lastLearnKey.flatMap { learner.learned(for: $0) },
