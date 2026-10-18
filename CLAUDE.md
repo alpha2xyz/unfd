@@ -1,6 +1,6 @@
 # unfd
 
-Switches the keyboard language by itself and fixes text typed in the wrong layout (⌥⇧Space). Called AutoLang until 0.4.0: the source folder, the Swift module (`PRODUCT_MODULE_NAME: AutoLang`), the tests and the bundle ID (`com.alpha2xyz.autolang`, so saved settings carry over) keep that name; the project, scheme, target and app are `unfd`.
+Switches the keyboard language by itself and fixes text typed in the wrong layout (⌥⇧Space). Called AutoLang until 0.4.0: the Swift module (`PRODUCT_MODULE_NAME: AutoLang`), the tests and the bundle ID (`com.alpha2xyz.autolang`, so saved settings carry over) keep that name; the project, scheme, target and app are `unfd`.
 
 This file is public-safe: it holds only facts a contributor needs to build and change the app. Private notes live in the workspace folder above this repo, never in this repo.
 
@@ -11,10 +11,10 @@ This file is public-safe: it holds only facts a contributor needs to build and c
 
 ## Layout
 
-- `AutoLang/App/`: app entry point (`@main`) and app-wide settings.
-- `AutoLang/Features/<Feature>/`: one folder per screen or feature (view + its logic).
-- `AutoLang/Core/`: models and services shared by features.
-- `AutoLang/Resources/`: asset catalog (app icon, named colors), localized strings.
+- `unfd/App/`: app entry point (`@main`) and app-wide settings.
+- `unfd/Features/<Feature>/`: one folder per screen or feature (view + its logic).
+- `unfd/Core/`: models and services shared by features.
+- `unfd/Resources/`: asset catalog (app icon, named colors), localized strings.
 - `AutoLangTests/`: unit tests.
 
 ## Commands
