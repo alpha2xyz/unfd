@@ -67,7 +67,7 @@ struct HomeView: View {
             row(Text("يشتغل مع تشغيل الجهاز"), Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
 
             Divider()
-            Button("إنهاء AutoLang") { NSApplication.shared.terminate(nil) }
+            Button("إنهاء unfd") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
         }
         .toggleStyle(.switch)

@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// DEBUG only. `open AutoLang.app --args -snapshotDir /path` draws the panel and the permission screen
+/// DEBUG only. `open unfd.app --args -snapshotDir /path` draws the panel and the permission screen
 /// (system, light and dark) to PNG files without the screen (works while the Mac is locked), then quits.
 enum PanelSnapshot {
     static func runIfAsked(model: AppModel) {

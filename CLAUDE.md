@@ -1,13 +1,13 @@
-# AutoLang
+# unfd
 
-Switches the keyboard language by itself: English in address bars, the chat's language in WhatsApp and other apps.
+Switches the keyboard language by itself and fixes text typed in the wrong layout (⌥⇧Space). Called AutoLang until 0.4.0: the source folder, the Swift module (`PRODUCT_MODULE_NAME: AutoLang`), the tests and the bundle ID (`com.alpha2xyz.autolang`, so saved settings carry over) keep that name; the project, scheme, target and app are `unfd`.
 
 This file is public-safe: it holds only facts a contributor needs to build and change the app. Private notes live in the workspace folder above this repo, never in this repo.
 
 ## Stack
 
 - macOS 14.0+, SwiftUI, Swift 6.0.
-- The Xcode project is generated from `project.yml` by XcodeGen. Never edit `AutoLang.xcodeproj` by hand; it is gitignored. Change `project.yml`, then run `xcodegen generate`.
+- The Xcode project is generated from `project.yml` by XcodeGen. Never edit `unfd.xcodeproj` by hand; it is gitignored. Change `project.yml`, then run `xcodegen generate`.
 
 ## Layout
 
@@ -22,9 +22,9 @@ This file is public-safe: it holds only facts a contributor needs to build and c
 The `DEVELOPER_DIR=` prefix points the build at Xcode even when the Mac's default tools are only the Command Line Tools.
 
 - Generate project: `xcodegen generate`
-- Build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme AutoLang -configuration Debug -derivedDataPath build build`
-- Test: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme AutoLang -derivedDataPath build test`
-- Run: `open build/Build/Products/Debug/AutoLang.app`
+- Build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme unfd -configuration Debug -derivedDataPath build build`
+- Test: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme unfd -derivedDataPath build test`
+- Run: `open build/Build/Products/Debug/unfd.app`
 
 ## Conventions
 
