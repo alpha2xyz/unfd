@@ -4,6 +4,8 @@
 <h1 align="center">unfd</h1>
 <p align="center"><b>Stop pressing the language key. Your Mac types in the right language, Arabic or English.</b></p>
 
+<p align="center"><img src="docs/demo.gif" width="480" alt="unfd demo: hgsghl ugd;l becomes السلام عليكم with ⌥⇧Space, and the address bar switches to English by itself"></p>
+
 <p align="center"><img src="docs/screenshots/panel.png" width="320" alt="unfd menu bar panel"></p>
 
 **unfd** is «عربي» typed with the English keyboard by mistake, the exact problem this app solves. It lives in the menu bar and switches between Arabic and English for you, and fixes text you already typed in the wrong layout.
