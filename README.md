@@ -40,11 +40,14 @@ Anyone who types both Arabic and English on a Mac and is tired of the language k
 
 ## Install
 
-There is no download yet. Build it from source (below), then:
+1. Download `unfd-0.4.1.zip` from the [latest release](https://github.com/alpha2xyz/unfd/releases/latest) and open it.
+2. Move `unfd.app` to the Applications folder.
+3. Open it. The app is not notarized by Apple, so macOS blocks the first launch. You do this once:
+   - macOS 15 or later: click **Done**, then go to System Settings > Privacy & Security, scroll down and click **Open Anyway** next to the unfd message, then confirm.
+   - macOS 14: right-click the app, choose **Open**, then **Open** again.
+4. Click the **ع / EN** item in the menu bar and press the button that opens System Settings. Turn on unfd under Privacy & Security > Accessibility.
 
-1. Copy `unfd.app` to the Applications folder.
-2. Open it. The app is not notarized, so the first time: right-click the app, choose **Open**, then **Open** again.
-3. Click the **ع / EN** item in the menu bar and press the button that opens System Settings. Turn on unfd under Privacy & Security > Accessibility.
+Prefer Terminal? After step 2, `xattr -dr com.apple.quarantine /Applications/unfd.app` skips step 3.
 
 ## Known issues
 
