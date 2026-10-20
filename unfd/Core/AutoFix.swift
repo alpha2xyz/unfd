@@ -29,14 +29,20 @@ nonisolated struct WordBuffer: Sendable, Equatable {
     }
 
     private(set) var keys: [Key] = []
+    /// The layout the keys were typed in. A key in another layout starts a new word: the fast second word of
+    /// «hgsghl ugd;l» must not be read through the layout the first fix switched to.
+    private(set) var layoutID: String?
     var isEmpty: Bool { keys.isEmpty }
 
-    mutating func append(_ key: Key) { keys.append(key) }
+    mutating func append(_ key: Key, layoutID: String) {
+        if layoutID != self.layoutID { keys = []; self.layoutID = layoutID }
+        keys.append(key)
+    }
 
     /// Backspace removes the last key; on an empty buffer the cursor position is unknown, so the caller resets.
     mutating func backspace() { if !keys.isEmpty { keys.removeLast() } }
 
-    mutating func clear() { keys = [] }
+    mutating func clear() { keys = []; layoutID = nil }
 
     /// The text these keys type in a layout (`map` from `LayoutConverter.keyMap`). Nil when a key is unknown there.
     func text(in map: [Int: String]) -> String? {

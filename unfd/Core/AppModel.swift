@@ -296,6 +296,7 @@ final class AppModel {
         guard rules.slashCommands else { return }
         switch slash.press(key, current: currentLang) {
         case .toEnglish?:
+            autoFixer.cursorMoved()   // the "/" is not part of a word
             beforeSlash = (nowLang, nowReason)
             if currentLang != .en { switchTo(.en, reason: .slash) }
         case .restore(let lang)?:

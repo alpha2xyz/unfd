@@ -63,7 +63,8 @@ final class AutoFixer {
         case kVK_Return, kVK_ANSI_KeypadEnter, kVK_Tab, kVK_Escape:
             buffer.clear()   // Return may have sent the message already; fixing afterwards would land in the next one
         case 0..<51:
-            buffer.append(.init(code: code, shift: event.modifierFlags.contains(.shift)))
+            guard let layoutID = Self.currentLayoutID() else { cursorMoved(); return }
+            buffer.append(.init(code: code, shift: event.modifierFlags.contains(.shift)), layoutID: layoutID)
         default:
             cursorMoved()   // arrows, F-keys, forward delete
         }
@@ -73,8 +74,7 @@ final class AutoFixer {
         let keys = buffer
         buffer.clear()
         guard allowed, let lists, !keys.isEmpty, !IsSecureEventInputEnabled() else { return }
-        guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
-              let currentID = InputSourceIDs.string(current, kTISPropertyInputSourceID) else { return }
+        guard let currentID = keys.layoutID, let current = InputSourceIDs.find(currentID) else { return }
         let currentLang = InputSources.lang(of: current) ?? .en
         let otherID = currentLang == .ar ? InputSourceIDs.abc
             : (InputSources.target(for: .ar, westernDigits: true).flatMap { InputSourceIDs.string($0, kTISPropertyInputSourceID) } ?? InputSourceIDs.arabic123)
@@ -88,6 +88,11 @@ final class AutoFixer {
         undo.fixed(.init(original: typed, fixed: fix.text, originalLang: currentLang, fixedLang: fix.lang, at: Date()))
         setTap(enabled: true)
         onFixed(fix.lang)
+    }
+
+    private static func currentLayoutID() -> String? {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else { return nil }
+        return InputSourceIDs.string(source, kTISPropertyInputSourceID)
     }
 
     private func map(_ layoutID: String) -> [Int: String] {

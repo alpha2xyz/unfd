@@ -381,14 +381,18 @@ struct AutoFixTests {
         let english = LayoutConverter.keyMap(layoutID: InputSourceIDs.abc)!
         let arabic = LayoutConverter.keyMap(layoutID: InputSourceIDs.arabic123)!
         var buffer = WordBuffer()
-        for code in [4, 5, 1, 5, 4, 37] { buffer.append(.init(code: code, shift: false)) }   // h g s g h l
+        for code in [4, 5, 1, 5, 4, 37] { buffer.append(.init(code: code, shift: false), layoutID: "abc") }   // h g s g h l
+        #expect(buffer.layoutID == "abc")
         #expect(buffer.text(in: english) == "hgsghl")
         #expect(buffer.text(in: arabic) == "السلام")
         buffer.backspace()
         #expect(buffer.text(in: english) == "hgsgh")
-        buffer.append(.init(code: 49, shift: false))   // Space is not a letter key
+        buffer.append(.init(code: 49, shift: false), layoutID: "abc")   // Space is not a letter key
         #expect(buffer.text(in: english) == nil)
+        buffer.append(.init(code: 4, shift: false), layoutID: "arabic")   // another layout starts a new word
+        #expect(buffer.keys.count == 1 && buffer.layoutID == "arabic")
         buffer.clear()
+        #expect(buffer.layoutID == nil)
         #expect(buffer.isEmpty)
         buffer.backspace()
         #expect(buffer.isEmpty)
