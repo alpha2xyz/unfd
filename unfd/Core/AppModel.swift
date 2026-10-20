@@ -9,7 +9,7 @@ import ServiceManagement
 final class AppModel {
     // Panel switches (saved).
     var enabled: Bool { didSet { save(); if enabled { watcher.recheck() } } }
-    var rules: Rules { didSet { save() } }
+    var rules: Rules { didSet { save(); if rules.autoFix { autoFixer.load() } } }
     var westernDigits: Bool { didSet { save() } }
     var showIndicator: Bool { didSet { save() } }
 
@@ -21,6 +21,8 @@ final class AppModel {
     private(set) var nowReason: Reason?
     private(set) var correctionsToday = 0
     private(set) var midTextToday = 0
+    private(set) var autoFixesToday = 0
+    private(set) var undoneFixesToday = 0
     private(set) var trusted = AXIsProcessTrusted()
     private(set) var arabic123Enabled = InputSources.isArabic123Enabled()
     private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -46,6 +48,8 @@ final class AppModel {
     @ObservationIgnored private var slash = SlashMode()
     @ObservationIgnored private var beforeSlash: (Lang?, Reason?)
     @ObservationIgnored private var keyMonitor: Any?
+    @ObservationIgnored private let autoFixer = AutoFixer()
+    @ObservationIgnored private var autoFixAllowed = false
 
     init() {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
@@ -54,7 +58,8 @@ final class AppModel {
                       textDecides: defaults.object(forKey: "rule.text") as? Bool ?? true,
                       chatMemory: defaults.object(forKey: "rule.memory") as? Bool ?? true,
                       slashCommands: defaults.object(forKey: "rule.slash") as? Bool ?? true,
-                      learn: defaults.object(forKey: "rule.learn") as? Bool ?? true)
+                      learn: defaults.object(forKey: "rule.learn") as? Bool ?? true,
+                      autoFix: defaults.object(forKey: "rule.autofix") as? Bool ?? false)
         westernDigits = defaults.object(forKey: "westernDigits") as? Bool ?? true
         showIndicator = defaults.object(forKey: "showIndicator") as? Bool ?? false   // macOS shows its own tag after a switch; ours is a backup
         if let data = defaults.data(forKey: "memory"), let saved = try? JSONDecoder().decode([String: Lang].self, from: data) {
@@ -68,6 +73,21 @@ final class AppModel {
             // The old v0.2 key "manual.count" still loads: those presses count as corrections.
             correctionsToday = defaults.object(forKey: "manual.corrections") as? Int ?? defaults.integer(forKey: "manual.count")
             midTextToday = defaults.integer(forKey: "manual.mid")
+            autoFixesToday = defaults.integer(forKey: "autofix.count")
+            undoneFixesToday = defaults.integer(forKey: "autofix.undone")
+        }
+        if rules.autoFix { autoFixer.load() }
+        autoFixer.onFixed = { [weak self] lang in
+            guard let self else { return }
+            switchTo(lang, reason: .autoFix)
+            manualPlace = lastPlace   // the fixed language holds for this place, like the fix button
+            bumpDay(); autoFixesToday += 1; save()
+        }
+        autoFixer.onUndone = { [weak self] lang in
+            guard let self else { return }
+            switchTo(lang, reason: .undoFix)
+            manualPlace = lastPlace
+            bumpDay(); undoneFixesToday += 1; save()
         }
 
         watcher.onFocusChange = { [weak self] element, app in self?.focusChanged(element, app) }
@@ -179,6 +199,8 @@ final class AppModel {
                     self?.lastLearnKey = nil
                     self?.focusIsTextEntry = false
                     self?.slash.reset()
+                    self?.autoFixAllowed = false
+                    self?.autoFixer.fieldChanged()
                 }
                 return
             }
@@ -217,7 +239,9 @@ final class AppModel {
         // so a repeated focus event can never flip his choice back while he types.
         let place = isLink ? "\(context.field.bundleID)|link" : isSystem ? "\(context.field.bundleID)|system" : context.chatKey
         lastLearnKey = Learner.key(for: context.field, isChat: context.isChat)
-        if place != lastPlace { manualPlace = nil; lastPlace = place; slash.reset(); typedSinceFocus = 0 }
+        if place != lastPlace { manualPlace = nil; lastPlace = place; slash.reset(); typedSinceFocus = 0; autoFixer.fieldChanged() }
+        // Never in password, link and system fields, nor in terminals (Secure Keyboard Entry is checked at each word).
+        autoFixAllowed = !isLink && !isSystem && !AutoFixer.terminals.contains(context.field.bundleID)
         if manualPlace == place || slash.isActive { return }
         nowApp = appName
         nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.isChat ? context.chatName : ""
@@ -246,7 +270,10 @@ final class AppModel {
 
     /// Slash commands: English after a "/" at a word start, the earlier language back on Space, Return, Tab or Escape.
     private func keyPressed(_ event: NSEvent) {
-        guard enabled, focusIsTextEntry else { return }
+        guard enabled, focusIsTextEntry, !AutoFixer.isOwn(event) else { return }
+        if rules.autoFix, !slash.isActive {
+            autoFixer.keyPressed(event, allowed: autoFixAllowed, fieldLang: nowLang)
+        }
         let key: SlashMode.Key
         if event.type != .keyDown || !event.modifierFlags.intersection([.command, .control]).isEmpty {
             key = .other
@@ -291,6 +318,7 @@ final class AppModel {
         if lang == lastSelectedByApp, Date().timeIntervalSince(lastSwitchByApp) <= 1 { return }
         manualPlace = lastPlace   // holds at once, so the 0.4 s re-check never flips it back
         slash.reset()
+        autoFixer.cursorMoved()   // keys pressed before the layout change would read wrong now
         let place = lastPlace, chatKey = lastChatKey, learnKey = lastLearnKey, typed = typedSinceFocus
         let box = lastElement
         // One field-value read per manual press (never per key), off the main thread.
@@ -303,9 +331,15 @@ final class AppModel {
         }
     }
 
+    private func bumpDay() {
+        if countersDay != Self.today {
+            countersDay = Self.today; correctionsToday = 0; midTextToday = 0; autoFixesToday = 0; undoneFixesToday = 0
+        }
+    }
+
     private func finishPress(_ kind: PressKind, lang: Lang, place: String?, chatKey: String?, learnKey: String?) {
         guard place == lastPlace else { return }   // he moved on while the field was read
-        if countersDay != Self.today { countersDay = Self.today; correctionsToday = 0; midTextToday = 0 }
+        bumpDay()
         switch kind {
         case .correction:
             correctionsToday += 1
@@ -332,6 +366,7 @@ final class AppModel {
         defaults.set(rules.chatMemory, forKey: "rule.memory")
         defaults.set(rules.slashCommands, forKey: "rule.slash")
         defaults.set(rules.learn, forKey: "rule.learn")
+        defaults.set(rules.autoFix, forKey: "rule.autofix")
         defaults.set(westernDigits, forKey: "westernDigits")
         defaults.set(showIndicator, forKey: "showIndicator")
         defaults.set(try? JSONEncoder().encode(memory), forKey: "memory")
@@ -339,6 +374,8 @@ final class AppModel {
         defaults.set(countersDay.isEmpty ? Self.today : countersDay, forKey: "manual.day")
         defaults.set(correctionsToday, forKey: "manual.corrections")
         defaults.set(midTextToday, forKey: "manual.mid")
+        defaults.set(autoFixesToday, forKey: "autofix.count")
+        defaults.set(undoneFixesToday, forKey: "autofix.undone")
     }
 }
 

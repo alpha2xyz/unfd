@@ -23,6 +23,7 @@
 - **Learns from your corrections:** correct the language 3 times in a row in the same kind of field, and it starts there in that language by itself.
 - **Memory per WhatsApp chat:** switch once by hand in a chat and it keeps that language for it.
 - **Numbers always 1234:** when it picks Arabic, it uses Apple's "Arabic – 123" layout (the same letters, with 1234567890 on the number row).
+- **Fix words as you type (off by default):** when a word you just finished was typed in the wrong layout (`hgsghl` for «السلام»), it is replaced the moment you press Space and the keyboard switches. `⌘Z` within 5 seconds puts the original back and that word is left alone for the rest of the session. Decided with bundled Arabic and English word lists, on your Mac; never in password, link or terminal fields.
 - **Start at login.**
 
 ## How it works
@@ -69,3 +70,7 @@ Requirements: Xcode 26 or later, [XcodeGen](https://github.com/yonaskolb/XcodeGe
 ## License
 
 [MIT](LICENSE)
+
+## Credits
+
+- The Arabic and English word lists in `unfd/Resources/Words/` come from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave (OpenSubtitles 2018), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). See [NOTICE](NOTICE).

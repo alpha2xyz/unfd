@@ -264,3 +264,160 @@ struct ChatMemoryTests {
         #expect(AppModel.chatOnly(["com.anthropic.claudefordesktop|Claude": .ar, "com.apple.TextEdit|Untitled": .en]).isEmpty)
     }
 }
+
+struct AutoFixTests {
+    static let converter = LayoutConverter()!
+    static let arabicList = ["لا", "من", "في", "هو", "هذا", "كيف", "وين", "وش", "السلام", "عليكم", "سقف", "ثوب", "فخ", "شكرا"]
+    static let englishList = ["you", "i", "the", "to", "is", "hello", "ma", "im", "thanks", "world", "srt", "emf"]
+
+    var lists: WordLists {
+        WordLists(arabic: WordLists.parse(Self.arabicList.joined(separator: "\n")),
+                  english: WordLists.parse(Self.englishList.joined(separator: "\n")))
+    }
+
+    /// Only what the lists hold is a word; the spell checkers accept what the test names.
+    func detector(arabicSpelled: Set<String> = [], englishSpelled: Set<String> = []) -> AutoFixDetector {
+        AutoFixDetector(words: lists, spelledArabic: { arabicSpelled.contains($0) }, spelledEnglish: { englishSpelled.contains($0) })
+    }
+
+    /// An Arabic word as the English layout shows it, and back.
+    func typedEnglish(for arabic: String) -> (typed: String, converted: String) {
+        let typed = Self.converter.convert(arabic, to: .en)
+        return (typed, Self.converter.convert(typed, to: .ar))
+    }
+
+    func typedArabic(for english: String) -> (typed: String, converted: String) {
+        let typed = Self.converter.convert(english, to: .ar)
+        return (typed, Self.converter.convert(typed, to: .en))
+    }
+
+    @Test func arabicTypedOnEnglishLayoutIsFixed() {
+        let w = typedEnglish(for: "السلام")
+        #expect(w.typed == "hgsghl")
+        #expect(detector().check(typed: w.typed, converted: w.converted, context: .init()) == .init(text: "السلام", lang: .ar))
+    }
+
+    @Test func englishTypedOnArabicLayoutIsFixed() {
+        let w = typedArabic(for: "hello")
+        #expect(detector().check(typed: w.typed, converted: w.converted, context: .init()) == .init(text: "hello", lang: .en))
+    }
+
+    @Test func realEnglishWordStays() {
+        // "ma" (rank 571) and "srt" are in the English list: typed on purpose, unless the context says Arabic.
+        let ma = typedEnglish(for: "وش"), srt = typedEnglish(for: "سقف")
+        #expect(srt.typed == "srt")
+        #expect(detector().check(typed: ma.typed, converted: ma.converted, context: .init()) == nil)
+        #expect(detector().check(typed: srt.typed, converted: srt.converted, context: .init()) == nil)
+        #expect(detector().check(typed: srt.typed, converted: srt.converted, context: .init(previousFixed: .ar))?.text == "سقف")
+    }
+
+    @Test func twoLetterWordsNeedContext() {
+        let im = typedEnglish(for: "هو")
+        #expect(detector().check(typed: im.typed, converted: im.converted, context: .init()) == nil)
+        #expect(detector().check(typed: im.typed, converted: im.converted, context: .init(previousFixed: .ar))?.text == "هو")
+        #expect(detector().check(typed: im.typed, converted: im.converted, context: .init(fieldLang: .ar))?.text == "هو")
+        #expect(detector().check(typed: im.typed, converted: im.converted, context: .init(previousFixed: .en, fieldLang: .en)) == nil)
+    }
+
+    @Test func oneLetterNever() {
+        let w = typedEnglish(for: "و")
+        #expect(detector().check(typed: w.typed, converted: w.converted, context: .init(previousFixed: .ar, fieldLang: .ar)) == nil)
+    }
+
+    @Test func spellCheckerGuardsEnglish() {
+        // "wrld" is not in the list, but the English checker knows it: it stays.
+        let w = typedEnglish(for: Self.converter.convert("wrld", to: .ar))
+        let fake = lists
+        var listsWithWord = fake; listsWithWord.arabic[w.converted] = 999
+        let d = AutoFixDetector(words: listsWithWord, spelledArabic: { _ in false }, spelledEnglish: { $0 == "wrld" })
+        #expect(d.check(typed: w.typed, converted: w.converted, context: .init()) == nil)
+    }
+
+    @Test func rareArabicWordIsNotTurnedEnglish() {
+        // لهب is outside the list but a real word (the Arabic checker accepts it): never "gif" or anything else.
+        let w = typedArabic(for: "gif")
+        var withGif = lists; withGif.english["gif"] = 500
+        let d = AutoFixDetector(words: withGif, spelledArabic: { $0 == "لهب" }, spelledEnglish: { _ in false })
+        #expect(w.typed == "لهب")
+        #expect(d.check(typed: w.typed, converted: w.converted, context: .init()) == nil)
+        // The same keys with a checker that rejects the Arabic form: fixed.
+        let loose = AutoFixDetector(words: withGif, spelledArabic: { _ in false }, spelledEnglish: { _ in false })
+        #expect(loose.check(typed: w.typed, converted: w.converted, context: .init())?.text == "gif")
+    }
+
+    @Test func rareEnglishTargetIsNotUsed() {
+        var lists = lists; lists.english["zzzq"] = 40_000
+        let w = typedArabic(for: "zzzq")
+        let d = AutoFixDetector(words: lists, spelledArabic: { _ in false }, spelledEnglish: { _ in false })
+        #expect(d.check(typed: w.typed, converted: w.converted, context: .init()) == nil)
+    }
+
+    @Test func trailingPunctuationIsKept() {
+        let w = typedEnglish(for: "شكرا،")
+        #expect(detector().check(typed: w.typed, converted: w.converted, context: .init())?.text == "شكرا،")
+        let e = typedArabic(for: "thanks,")
+        #expect(detector().check(typed: e.typed, converted: e.converted, context: .init())?.text == "thanks,")
+        #expect(AutoFixDetector.stem("hello!?") == "hello")
+        #expect(AutoFixDetector.trimmed("a;vh,") == "a;vh")
+        let lak = typedEnglish(for: "لاك")   // ك sits on the ";" key: the typed word ends in punctuation that is a letter
+        var withLak = lists; withLak.arabic["لاك"] = 100
+        let d = AutoFixDetector(words: withLak, spelledArabic: { _ in false }, spelledEnglish: { _ in false })
+        #expect(d.check(typed: lak.typed, converted: lak.converted, context: .init())?.text == "لاك")
+        #expect(AutoFixDetector.stem("a1b") == nil)
+        #expect(AutoFixDetector.stem("...") == nil)
+    }
+
+    @Test func undoneWordIsSkipped() {
+        let w = typedEnglish(for: "السلام")
+        #expect(detector().check(typed: w.typed, converted: w.converted, context: .init(), skip: [w.typed]) == nil)
+    }
+
+    @Test func mixedAndDigitsStay() {
+        #expect(detector().check(typed: "hg1", converted: "ال1", context: .init()) == nil)
+        #expect(detector().check(typed: "12", converted: "12", context: .init(previousFixed: .ar)) == nil)
+    }
+
+    @Test func bufferReadsKeysInBothLayouts() {
+        let english = LayoutConverter.keyMap(layoutID: InputSourceIDs.abc)!
+        let arabic = LayoutConverter.keyMap(layoutID: InputSourceIDs.arabic123)!
+        var buffer = WordBuffer()
+        for code in [4, 5, 1, 5, 4, 37] { buffer.append(.init(code: code, shift: false)) }   // h g s g h l
+        #expect(buffer.text(in: english) == "hgsghl")
+        #expect(buffer.text(in: arabic) == "السلام")
+        buffer.backspace()
+        #expect(buffer.text(in: english) == "hgsgh")
+        buffer.append(.init(code: 49, shift: false))   // Space is not a letter key
+        #expect(buffer.text(in: english) == nil)
+        buffer.clear()
+        #expect(buffer.isEmpty)
+        buffer.backspace()
+        #expect(buffer.isEmpty)
+    }
+
+    @Test func undoWindow() {
+        var undo = AutoFixUndo()
+        let start = Date()
+        let fix = AutoFixUndo.Pending(original: "hgsghl", fixed: "السلام", originalLang: .en, fixedLang: .ar, at: start)
+        undo.fixed(fix)
+        #expect(undo.keyPressed(isUndo: true, now: start.addingTimeInterval(2)) == fix)
+        #expect(undo.pending == nil)
+        #expect(undo.keyPressed(isUndo: true, now: start.addingTimeInterval(3)) == nil)   // used once
+        undo.fixed(fix)
+        #expect(undo.keyPressed(isUndo: true, now: start.addingTimeInterval(6)) == nil)   // too late
+        undo.fixed(fix)
+        #expect(undo.keyPressed(isUndo: false, now: start.addingTimeInterval(1)) == nil)   // another key closes it
+        #expect(undo.keyPressed(isUndo: true, now: start.addingTimeInterval(1)) == nil)
+    }
+
+    @Test func listsParseInOrder() {
+        let ranks = WordLists.parse("you\ni\n\nthe\nyou\n")
+        #expect(ranks == ["you": 0, "i": 1, "the": 2])
+        for name in ["ar", "en"] {
+            let url = Bundle(for: BundleToken.self).url(forResource: name, withExtension: "txt")
+                ?? Bundle.main.url(forResource: name, withExtension: "txt")
+            #expect(url != nil, "\(name).txt is bundled")
+        }
+    }
+}
+
+private final class BundleToken {}

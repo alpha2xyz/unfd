@@ -27,6 +27,7 @@ struct HomeView: View {
             row(Text("تذكّر لغتي لكل محادثة"), $model.rules.chatMemory)
             row(Text("تعلّم من تصحيحاتي"), $model.rules.learn)
             row(Text("بعد / ← إنجليزي، والمسافة ترجّع لغتك"), $model.rules.slashCommands)
+            row(Text(Self.arabic("صحّح الكلمة تلقائيًا وأنا أكتب")), $model.rules.autoFix)
             row(Text("الأرقام دائماً 1234"), $model.westernDigits)
             row(Text("أظهر اللغة عند المؤشر لما تتغير"), $model.showIndicator)
             if model.westernDigits && !model.arabic123Enabled {
@@ -54,6 +55,13 @@ struct HomeView: View {
                 Spacer()
                 Text(String(model.midTextToday)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
+            if model.rules.autoFix {
+                HStack {
+                    Text("تصحيحات تلقائية اليوم: \(String(model.autoFixesToday))").foregroundStyle(.secondary)
+                    Spacer()
+                    Text("تراجعت عنها: \(String(model.undoneFixesToday))").foregroundStyle(.secondary)
+                }
+            }
             HStack {
                 Text("محادثات محفوظة: \(String(model.memory.count))").foregroundStyle(.secondary)
                 Spacer()
@@ -72,6 +80,13 @@ struct HomeView: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+
+    /// The panel is Arabic only today; a string that also has an English entry in the catalog is read from the
+    /// Arabic table on purpose, so one row never shows up in English on an English-language Mac.
+    private static func arabic(_ key: String) -> String {
+        guard let path = Bundle.main.path(forResource: "ar", ofType: "lproj"), let bundle = Bundle(path: path) else { return key }
+        return bundle.localizedString(forKey: key, value: key, table: nil)
     }
 
     /// Label on one side, switch on the other, so every switch lines up.
