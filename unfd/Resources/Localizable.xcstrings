@@ -1,5 +1,23 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "صحّح الكلمة تلقائيًا وأنا أكتب" : {
+      "comment" : "Panel switch: auto-fix words typed in the wrong layout, as he types.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صحّح الكلمة تلقائيًا وأنا أكتب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fix words typed in the wrong layout as I type"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

@@ -50,7 +50,7 @@ nonisolated struct LayoutConverter: Sendable {
     }
 
     /// Key (code + shift) → the text that layout types for it.
-    private static func keyMap(layoutID: String) -> [Int: String]? {
+    static func keyMap(layoutID: String) -> [Int: String]? {
         guard let source = InputSourceIDs.find(layoutID),
               let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
         let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data

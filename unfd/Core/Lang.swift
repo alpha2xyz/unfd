@@ -22,6 +22,8 @@ nonisolated enum Reason: Sendable, Equatable {
     case text(Lang)
     case fix
     case slash
+    case autoFix
+    case undoFix
     case device
 
     var arabic: String {
@@ -34,6 +36,8 @@ nonisolated enum Reason: Sendable, Equatable {
         case .text(.en): "آخر الكلام بالإنجليزي"
         case .fix: "زر التصليح"
         case .slash: "أمر يبدأ بـ /"
+        case .autoFix: "صحّحت الكلمة تلقائيًا"
+        case .undoFix: "تراجعت عن التصحيح التلقائي"
         case .device: "لغة الجهاز، الأساس لأي خانة"
         }
     }
@@ -47,6 +51,7 @@ nonisolated struct Rules: Sendable, Equatable {
     var chatMemory = true
     var slashCommands = true
     var learn = true
+    var autoFix = false
 }
 
 /// One place for the precedence: link field > system field (Spotlight, System Settings) > the field's own text
