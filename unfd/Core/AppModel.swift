@@ -238,14 +238,14 @@ final class AppModel {
         // A manual switch holds for this place (this field type, this chat or window) until he moves elsewhere,
         // so a repeated focus event can never flip his choice back while he types.
         let place = isLink ? "\(context.field.bundleID)|link" : isSystem ? "\(context.field.bundleID)|system" : context.chatKey
-        lastLearnKey = Learner.key(for: context.field, isChat: context.isChat)
+        lastLearnKey = Learner.key(for: context.field, isChat: context.readsMessages)   // chats follow their messages, never learned
         if place != lastPlace { manualPlace = nil; lastPlace = place; slash.reset(); typedSinceFocus = 0; autoFixer.fieldChanged() }
         // Never in password, link and system fields, nor in terminals (Secure Keyboard Entry is checked at each word).
         autoFixAllowed = !isLink && !isSystem && !AutoFixer.terminals.contains(context.field.bundleID)
         if manualPlace == place || slash.isActive { return }
         nowApp = appName
         nowPlace = isLink ? "خانة رابط" : isSystem ? "" : context.isChat ? context.chatName : ""
-        guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, isChat: context.isChat,
+        guard let (lang, reason) = Decider.decide(isLinkField: isLink, isSystemField: isSystem, isChat: context.readsMessages,
                                                   systemLang: Lang.system(),
                                                   fieldText: fieldText,
                                                   remembered: context.isChat ? memory[context.chatKey] : nil,

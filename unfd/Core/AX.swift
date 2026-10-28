@@ -71,6 +71,7 @@ nonisolated struct FieldContext: Sendable {
     var chatName: String
     var texts: [String]        // closest first
     var isChat = false         // true only when the WhatsApp reader returned a chat name
+    var readsMessages = false  // texts are the chat's latest messages (WhatsApp chat or Claude), so they decide
 }
 
 /// Reads the focused field and the text near it. Runs off the main thread; every walk is capped.
@@ -101,11 +102,49 @@ nonisolated enum ContextReader {
             if bundleID == "net.whatsapp.WhatsApp", let window {
                 (chatName, texts) = readWhatsApp(window)
             }
+            if bundleID == claudeApp { texts = readClaude(element) }
             let own = ScriptDetector.letterCounts(field.ownText)
             if own.arabic + own.latin >= 2 { texts.insert(field.ownText, at: 0) }
         }
         let name = chatName.isEmpty ? windowTitle : chatName
-        return FieldContext(field: field, chatKey: "\(bundleID)|\(name)", chatName: name, texts: texts, isChat: !chatName.isEmpty)
+        return FieldContext(field: field, chatKey: "\(bundleID)|\(name)", chatName: name, texts: texts, isChat: !chatName.isEmpty,
+                            readsMessages: !chatName.isEmpty || bundleID == claudeApp)
+    }
+
+    static let claudeApp = "com.anthropic.claudefordesktop"
+
+    /// Claude desktop (probed 2026-10-28): his own messages are groups whose DOM class list holds a `…user-message…`
+    /// class (`bg-[var(--cds-bg-user-message)]`); Claude's replies are left out, they are often English tool output.
+    /// Walks back from the composer through what comes before it, newest first. No bubble found = today's fallback.
+    static func readClaude(_ field: AXUIElement) -> [String] {
+        var bubbles: [String] = [], seen = 0
+        let start = Date()
+        func isOver() -> Bool { bubbles.count >= maxPieces || seen >= maxElements || Date().timeIntervalSince(start) >= maxSeconds }
+        func text(_ node: AXUIElement) -> String {
+            if AX.string(node, kAXRoleAttribute) == "AXStaticText" { return AX.string(node, kAXValueAttribute) }
+            return AX.children(node).map(text).joined(separator: " ")
+        }
+        func walk(_ node: AXUIElement) {
+            guard !isOver() else { return }
+            seen += 1
+            let classes = (AX.value(node, "AXDOMClassList") as? [String]) ?? []
+            if classes.contains(where: { $0.contains("user-message") }) {
+                let message = text(node)
+                if !message.isEmpty { bubbles.append(message) }
+                return
+            }
+            for child in AX.children(node).reversed() { walk(child) }
+        }
+        var node = field
+        while !isOver(), let parent = AX.element(node, kAXParentAttribute) {
+            let siblings = AX.children(parent)
+            if let index = siblings.firstIndex(where: { CFEqual($0, node) }) {
+                for sibling in siblings[..<index].reversed() { walk(sibling) }
+            }
+            if AX.string(parent, kAXRoleAttribute) == "AXWindow" { break }
+            node = parent
+        }
+        return bubbles
     }
 
     /// WhatsApp (probed 2026-10-11): messages are `WAMessageBubbleTableViewCell` items in `ChatMessagesTableView`;
