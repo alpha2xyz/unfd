@@ -55,7 +55,7 @@ nonisolated struct Rules: Sendable, Equatable {
 }
 
 /// One place for the precedence: link field > system field (Spotlight, System Settings) > the field's own text
-/// (what he already wrote there) > per-chat memory > learned from his corrections > last chat messages (WhatsApp chat only)
+/// (what he already wrote there) > per-chat memory > learned from his corrections > last chat messages (WhatsApp chat, his own messages in Claude)
 /// > the Mac's language, the base for every other field.
 nonisolated enum Decider {
     static func decide(isLinkField: Bool, isSystemField: Bool = false, isChat: Bool = false, systemLang: Lang = .en,

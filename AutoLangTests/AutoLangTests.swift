@@ -201,8 +201,17 @@ struct LearningRulesTests {
         #expect(Learner.key(for: field("com.apple.Notes", labels: ["Email"]), isChat: false) == nil)       // link field
         #expect(Learner.key(for: field("com.apple.Spotlight"), isChat: false) == nil)                       // system field
         #expect(Learner.key(for: field("net.whatsapp.WhatsApp"), isChat: true) == nil)                      // recognised chat
+        #expect(Learner.key(for: field("com.anthropic.claudefordesktop"), isChat: true) == nil)             // Claude reads messages
         #expect(Learner.key(for: field("com.google.Chrome"), isChat: false) == nil)                         // browser
         #expect(Learner.key(for: field("com.apple.Safari"), isChat: false) == nil)
+    }
+    /// Claude on an English Mac: his Arabic messages decide; an empty chat falls back to the Mac's language.
+    @Test func claudeFollowsHisMessages() {
+        let all = Rules()
+        #expect(Decider.decide(isLinkField: false, isChat: true, systemLang: .en, remembered: nil, learned: nil,
+                               detected: .ar, rules: all)! == (.ar, .text(.ar)))
+        #expect(Decider.decide(isLinkField: false, isChat: true, systemLang: .en, remembered: nil, learned: nil,
+                               detected: nil, rules: all)! == (.en, .device))
     }
     @Test func precedenceWithLearning() {
         let all = Rules()

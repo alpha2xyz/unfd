@@ -32,7 +32,7 @@ nonisolated struct Learner: Sendable, Codable, Equatable {
     ]
 
     /// The learning key for a field, or nil where nothing is learned: link and system fields, chats the
-    /// WhatsApp reader recognised (they have their own memory), and browsers.
+    /// WhatsApp reader recognised and Claude (their messages decide), and browsers.
     static func key(for field: FieldInfo, isChat: Bool) -> String? {
         if field.isLinkField || field.isSystemField || isChat || browsers.contains(field.bundleID) { return nil }
         return "\(field.bundleID)|\(field.role)|\(field.subrole)"
